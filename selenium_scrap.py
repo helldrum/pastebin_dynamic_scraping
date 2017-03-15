@@ -6,6 +6,7 @@ import time
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 import re
+import requests
 
 search = "python"
 url = "https://www.google.fr/?gfe_rd=cr&ei=S4rJWPnnHcWEaNjju7AH&gws_rd=ssl#q=site:pastebin.com+" + search + "&*"
@@ -14,7 +15,9 @@ browser = webdriver.Firefox()
 browser.get(url)
 time.sleep(5)
 suffix_clean = []
+pastebin_raw = []
 
+## scrap and extract pastebin suffix ex pastebin.com/e2tYTu45 -> e2tYTu45
 soup = BeautifulSoup(browser.page_source, 'html.parser')
 for link in soup.find_all('cite'):
   pastebin_suffix = link.string.split("/",1)[1]
@@ -22,16 +25,11 @@ for link in soup.find_all('cite'):
     suffix_clean.append(pastebin_suffix)
 
 for suffix in suffix_clean:
-  print suffix
+  pastebin_raw.append("http://pastebin.com/raw/" + suffix)
 
-#print ""
-#print ""
+for url in pastebin_raw:
+  result = requests.get(url)
+  time.sleep(1)
+  print result.text
 
-#browser.get(url + "&start=10")
-
-#time.sleep(4)
-
-#soup = BeautifulSoup(browser.page_source, 'html.parser')
-#for link in soup.find_all('a'):
-#    print(link.string, link.get('href'))
 
