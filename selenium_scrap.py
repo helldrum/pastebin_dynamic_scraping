@@ -88,30 +88,35 @@ def start():
   time.sleep(5)# wait for firefox to run
   next_button_exist = True
 
-  while next_button_exist :  
-    google = GoogleQuery("site:pastebin.com+{}".format(
-       urllib.quote_plus(
-        options.search_keyword)),
-        start=starter)
+  try:
+    while next_button_exist :  
+      google = GoogleQuery("site:pastebin.com+{}".format(
+         urllib.quote_plus(
+           options.search_keyword)),
+           start=starter)
 
-    browser.get(google.get_url())
-    time.sleep(3) # wait for the page to be full loaded 
+      browser.get(google.get_url())
+      time.sleep(3) # wait for the page to be full loaded 
 
-    soup = BeautifulSoup(browser.page_source, 'html.parser')
-    for link in soup.find_all('cite'):
-      pastebin = CleanPastebinLink(str(link))
-      result = requests.get(pastebin.get_raw_link())
-      print pastebin.get_raw_link()
-      print_output(str(link), result.text, options.output_file)
-      time.sleep(options.pastebin_tempo)
+      soup = BeautifulSoup(browser.page_source, 'html.parser')
+      for link in soup.find_all('cite'):
+        pastebin = CleanPastebinLink(str(link))
+        result = requests.get(pastebin.get_raw_link())
+        print_output(str(link), result.text, options.output_file)
+        time.sleep(options.pastebin_tempo)
 
-    try:
-      next_button_exist = browser.find_element_by_css_selector("#pnnext > span")
-    except NoSuchElementException:
-      next_button_exist = None
-    starter += 10 # google pagination increment 10 by 10
-    time.sleep(options.google_tempo)
+      try:
+        next_button_exist = browser.find_element_by_css_selector("#pnnext > span")
+      except NoSuchElementException:
+        next_button_exist = None
 
+      starter += 10 # google pagination increment 10 by 10
+      time.sleep(options.google_tempo)
+
+  except KeyboardInterrupt:
+    print "execution interrupt by user"
+    print "research " + options.output_file + " end in page "+ str(starter/10)
+    sys.exit(0)
 
 if __name__ == '__main__':
   start()
