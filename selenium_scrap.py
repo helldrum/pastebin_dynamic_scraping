@@ -100,7 +100,10 @@ def start():
 
       soup = BeautifulSoup(browser.page_source, 'html.parser')
       for link in soup.find_all('cite'):
-        pastebin = CleanPastebinLink(str(link))
+        try:
+          pastebin = CleanPastebinLink(str(link))
+        except ValueError:
+          pass
         result = requests.get(pastebin.get_raw_link())
         print_output(str(link), result.text, options.output_file)
         time.sleep(options.pastebin_tempo)
