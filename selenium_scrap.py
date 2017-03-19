@@ -8,87 +8,25 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
 import re
 import requests
-
 import os, sys
 from optparse import OptionParser
+import urllib
 
-#def scrap_pastebin_suffix( browser, suffix_clean):
-#  ## scrap and extract pastebin suffix ex pastebin.com/e2tYTu45 -> e2tYTu45
-#  soup = BeautifulSoup(browser.page_source, 'html.parser')
-#  for link in soup.find_all('cite'):
-#    pastebin_suffix = link.string.split("/",1)[1]
-#    if re.search('([A-Za-z0-9]){8}', pastebin_suffix):
-#      suffix_clean.append(pastebin_suffix)
-#
-#def prepare_pastebin_raw_links(suffix_clean, pastebin_raw): 
-#  for suffix in suffix_clean:
-#    pastebin_raw.append("http://pastebin.com/raw/" + suffix)
-#
-#search = "onion"
-#page = 80
-#url = "https://www.google.fr/?gfe_rd=cr&ei=S4rJWPnnHcWEaNjju7AH&gws_rd=ssl#q=site:pastebin.com+" + search + "&start="
-#suffix_clean = []
-#pastebin_raw = []
-#
-##init selenium driver
-#browser = webdriver.Firefox()
-# 
-#time.sleep(5)
-#browser.get(url)
-#time.sleep(3)
-#
-#scrap_pastebin_suffix(browser, suffix_clean)
-#
-#next_button_exist = browser.find_element_by_css_selector("#pnnext > span")
-#
-#while next_button_exist :
-#
-#  try:
-#    next_button_exist = browser.find_element_by_css_selector("#pnnext > span")
-#  except NoSuchElementException:
-#    next_button_exist = None
-#  
-#  page += 10
-#  browser.get(url+str(page)+"&filter=0")
-#  print "browse"+ url+str(page)+"&filter=0"
-#  time.sleep(30)
-#  scrap_pastebin_suffix(browser, suffix_clean)
-#  prepare_pastebin_raw_links(suffix_clean, pastebin_raw)
-#
-#  for raw in pastebin_raw:
-#    print raw
-#    
-#    file = open("testfile.txt","a")
-#    file.write("\n+++++++++++++++++++++++++"+raw+"%+++++++++++++++++++++\n")
-#
-#    try:
-#      result = requests.get(raw)
-#    except ConnectionError:
-#      pass
-#
-#    time.sleep(10)
-#
-#    file.write(result.text.encode('ascii', 'ignore'))
-#    file.write("\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
-#    file.close()
-#
-#  suffix_clean = []
-#  pastebin_raw = []
-#
 class CleanPastebinLink:
-
   def __init__(self, link):
     if re.search('pastebin', link):
-      pastebin_suffix = link.split("/",1)[1]
-      if re.search('([A-Za-z0-9]){8}', pastebin_suffix):
-        self.suffix = pastebin_suffix
+      pastebin_suffix = link.split("/",1)[1] 
+      match = re.search('([A-Za-z0-9]){8}', pastebin_suffix)
+      if match:
+        self.suffix = match.group(0)
       else:
         raise ValueError("link do not match a pastebin standalone link.")
     else:
       raise ValueError("link is not a pastebin link.")
 
   def get_raw_link(self):
-   return "http://pastebin.com/raw/" + self.suffix
+   return str("http://pastebin.com/raw/" + self.suffix)
+
 
 class GoogleQuery:
   def __init__(self, query, start=0):
@@ -101,13 +39,27 @@ class GoogleQuery:
   def get_url(self):
     return self.compose_base
 
-class SeleniumFirefox:
-  def __init__(self):
-    pass  
+def print_output(link, result, output_file):
+  if "Pastebin.com - Page Removed" not in result:
+
+    output = """
+      \n+++++++++++++++++++++++++{}+++++++++++++++++++++\n
+      {}\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n
+      """.format(link, result.encode('ascii', 'ignore'))
+  
+    if output_file:
+      file = open(output_file,"a")
+      file.write(output)
+      file.close()
+    else:
+      print output
 
 def start():
   parser = OptionParser()
-  usage = "usage: %prog [options] arg1 arg2"
+
+  parser.add_option("-t", "--search_term", type="string",
+    help="search keyword mandatory parameter",
+    dest="search_keyword", default=None)
 
   parser.add_option("-f", "--file", type="string",
     help="output file, if this arg is not provide, result will be print in stdout",
@@ -120,16 +72,45 @@ def start():
   parser.add_option("-p", "--pastebin_tempo", type="int",
     help="pastebin tempo during scrap, default value 10",
     dest="pastebin_tempo",default=10)
+  
+  parser.add_option("-s", "--page-start", type="int",
+    help="google scrap starter page, default value 0 (first page)",
+    dest="starter", default=0)
 
   options, arguments = parser.parse_args()
+  if not options.search_keyword:
+    "Error:parameter search_keyword is required, exiting..."
+    parser.print_help()
+    exit()
 
-  pastebin = CleanPastebinLink("pastebin.com/M5TscYhs")
+  starter = options.starter * 10
+  browser = webdriver.Firefox()
+  time.sleep(5)# wait for firefox to run
+  next_button_exist = True
 
-  print pastebin.get_raw_link()
-  google = GoogleQuery("site:pastebin.com+onion", start=20)
-  print google.get_url()
+  while next_button_exist :  
+    google = GoogleQuery("site:pastebin.com+{}".format(
+       urllib.quote_plus(
+        options.search_keyword)),
+        start=starter)
 
-  #pastebin = CleanPastebinLink("pastebin.com/lol/tralala")
+    browser.get(google.get_url())
+    time.sleep(3) # wait for the page to be full loaded 
+
+    soup = BeautifulSoup(browser.page_source, 'html.parser')
+    for link in soup.find_all('cite'):
+      pastebin = CleanPastebinLink(str(link))
+      result = requests.get(pastebin.get_raw_link())
+      print pastebin.get_raw_link()
+      print_output(str(link), result.text, options.output_file)
+      time.sleep(options.pastebin_tempo)
+
+    try:
+      next_button_exist = browser.find_element_by_css_selector("#pnnext > span")
+    except NoSuchElementException:
+      next_button_exist = None
+    starter += 10 # google pagination increment 10 by 10
+    time.sleep(options.google_tempo)
 
 
 if __name__ == '__main__':
