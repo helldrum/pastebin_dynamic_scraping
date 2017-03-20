@@ -1,5 +1,5 @@
 #!venv/bin/python
-#coding:utf8
+# coding: utf8
 
 from bs4 import BeautifulSoup
 import time
@@ -11,6 +11,10 @@ import requests
 import os, sys
 from optparse import OptionParser
 import urllib
+
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 class CleanPastebinLink:
   def __init__(self, link):
@@ -42,10 +46,10 @@ class GoogleQuery:
 def print_output(link, result, output_file):
   if "Pastebin.com - Page Removed" not in result:
 
-    output = """
+    output = u"""
       \n+++++++++++++++++++++++++{}+++++++++++++++++++++\n
       {}\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n
-      """.format(link, result.encode('ascii', 'ignore'))
+      """.format(link, result)
   
     if output_file:
       file = open(output_file,"a")
